@@ -31,6 +31,7 @@ includelib \masm32\lib\kernel32.lib
 ; Labels that with the allocated data (in this case Hello World!...) that are aliases to memory.
 output db "Simple Emulator", 0ah, 0h
 
+vm_strInput db "hello"
 ;Sum of ascii character "hello"
 vm_passHash dd 1b4h
 ;argument, pointer to string
@@ -42,8 +43,8 @@ vm_computeCorrectPassword db 02h, 02h ;pop address of string to register 2
 						  db 00h, 00h, 00h, 00h, 04h ;pushc 4
 						  db 02h, 01h ; popv r1
 							 
-							 ;Loop, instruction index 9
-						  db 04h, 01h,  02h ; Add r1, r2 -> stack
+						  ;Loop, instruction index 9
+						  db 04h, 01h, 02h ; Add r1, r2 -> stack
 						  db 0Ah, 03h ; popmb r3
 							 
 						  db 04h, 04h, 03h ; Add r3, r4
@@ -163,12 +164,19 @@ vm_add:
 	inc eax ;r0 starts at offset 1
 	inc edx ; ^
 	mov ecx, 4
+	
+	push edx
 	mul ecx
+	pop edx
+	
 	xchg eax, edx
+	
+	push edx
 	mul ecx
+	pop edx
 	
 	add eax, ebx ;Calculate offset to register
-	add edx, eax ; ^
+	add edx, ebx ; ^
 	
 	;At this point, EDX contains address of operand 0, and EAX contains address of operand 1
 	mov edx, dword ptr [edx]
@@ -202,12 +210,19 @@ vm_sub:
 	inc eax ;r0 starts at offset 1
 	inc edx ; ^
 	mov ecx, 4
+	
+	push edx
 	mul ecx
+	pop edx
+	
 	xchg eax, edx
+	
+	push edx
 	mul ecx
+	pop edx
 	
 	add eax, ebx ;Calculate offset to register
-	add edx, eax ; ^
+	add edx, ebx ; ^
 	
 	;At this point, EDX contains address of operand 0, and EAX contains address of operand 1
 	mov edx, dword ptr [edx]
@@ -322,7 +337,7 @@ vm_dec:
 	ret
 	
 vm_handlers_jump_table:
-	dd vm_pushc, vm_pushr, vm_popv;, 0, vm_add, vm_sub, vm_jnz, 0, 0, vm_exit, vm_popmb, vm_dec
+	dd vm_pushc, vm_pushr, vm_popv, 0, vm_add, vm_sub, vm_jnz, 0, 0, vm_exit, vm_popmb, vm_dec
 
 loopVm:
 	push ebp
@@ -354,6 +369,7 @@ initVm:
 	mov ebp, esp
 	
 	push 0BADF00Dh
+	push offset vm_strInput
 	mov ecx, esp
 	sub esp, 30 * 4 ; 30 dword of stack space
 		
@@ -370,7 +386,7 @@ initVm:
 	
 	add esp, 8*4 ; Clean-up stack
 	add esp, 30*4 ;Clean-up vm stack space
-	add esp, 4 ; Clean-up badfood constant.
+	add esp, 4 * 2 ; Clean-up badfood constant.
 	
 	pop ebp
 	ret
