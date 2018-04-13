@@ -29,34 +29,38 @@ includelib \masm32\lib\kernel32.lib
 
 .data
 ; Labels that with the allocated data (in this case Hello World!...) that are aliases to memory.
-output db "Simple Emulator", 0ah, 0h
+output_intro db "This application demonstrates obfuscation by virtualization.", 0h
+output_author db "Written by Jeremy Wildsmith. Hosted at the following GitHub URL: https://github.com/JeremyWildsmith/StackLang", 0ah, 0h
 
-vm_strInput db "hello"
-;Sum of ascii character "hello"
-vm_passHash dd 1b4h
+output_incorrect_password db "Incorrect password, sorry! Persistence is key.", 0h
+
+output_correct_password db "Congrats, you provided the correct password!", 0ah, 0h
+
+output_provide_password db "You must provide a password to be checked against in the command line arguments.", 0ah, 0h
+
 ;argument, pointer to string
 vm_computeCorrectPassword db 02h, 02h ;pop address of string to register 2 
 							 
 							 ;Initialize r4 to 0 - dont need to
 							 
 							 ;push constant 4
-						  db 00h, 00h, 00h, 00h, 04h ;pushc 4
+						  db 00h, 00h, 00h, 00h, 05h ;pushc 4
 						  db 02h, 01h ; popv r1
-							 
+						   
 						  ;Loop, instruction index 9
+						  db 0Bh, 01h ; dec r1
 						  db 04h, 01h, 02h ; Add r1, r2 -> stack
 						  db 0Ah, 03h ; popmb r3
 							 
 						  db 04h, 04h, 03h ; Add r3, r4
 						  db 02h, 04h ; popv r4
 							 
-						  db 0Bh, 01h ; dec r1
 						  db 01h, 01h ; pushr r1 (index) to stack
 					
 						  db 06h, 0ffh, 0ffh, 0ffh, 0f2h ; jnz, go back 14 bytes
 							 
 							 ;Compare computed hash to pre-computed valid hash.
-						  db 00h, 00h, 00h, 04h, 1bh ; pushc 0x1b4
+						  db 00h, 00h, 00h, 02h, 014h ; pushc 0x1b4
 						  db 02h, 00h ; popv r0
 							 
 						  db 05h, 04h, 00h ; sub r4, r0
@@ -65,6 +69,8 @@ vm_computeCorrectPassword db 02h, 02h ;pop address of string to register 2
 							 
 
 .code 
+
+helloString db "hello", 0h
 
 vm_pushc:
 	push ebp
@@ -285,7 +291,7 @@ vm_popmb:
 	mov ecx, [ebx]
 	inc ecx
 	xor eax, eax
-	mov al, byte ptr[eax] ;Extract register destination to al
+	mov al, byte ptr[ecx] ;Extract register destination to al
 	inc ecx
 	mov [ebx], ecx
 	;EAX contains register number
@@ -302,7 +308,11 @@ vm_popmb:
 	
 	inc eax ;R0 starts at offset 1
 	mov ecx, 4
+	
+	push edx
 	mul eax
+	pop edx
+	
 	add eax, ebx
 	
 	mov [eax], edx ;Copy value into register
@@ -361,6 +371,8 @@ loopVm:
 	cmp eax, 0
 	je loopVm_execLoop
 	
+	mov eax, [ebx + 4]
+	
 	pop ebp
 	ret
 
@@ -369,7 +381,8 @@ initVm:
 	mov ebp, esp
 	
 	push 0BADF00Dh
-	push offset vm_strInput
+	mov eax, [ebp + 12]
+	push eax
 	mov ecx, esp
 	sub esp, 30 * 4 ; 30 dword of stack space
 		
@@ -393,12 +406,53 @@ initVm:
 
 start: 
 
-push offset vm_computeCorrectPassword
-call initVm
+invoke GetStdHandle, STD_OUTPUT_HANDLE
+invoke WriteConsole, eax, addr output_intro, sizeof output_intro, ebx, NULL
 
 invoke GetStdHandle, STD_OUTPUT_HANDLE
-invoke WriteConsole, eax, addr output, sizeof output, ebx, NULL
+invoke WriteConsole, eax, addr output_author, sizeof output_author, ebx, NULL
+
+call GetCommandLineA
+
+mov ecx, ' '
+
+cmp byte ptr [eax], '"'
+jne find_args
+mov ecx, '"'
+
+find_args:
+inc eax
+cmp byte ptr [eax], 0
+je provide_password
+cmp byte ptr [eax], cl
+jne find_args
+inc eax
+
+cmp byte ptr [eax], 0
+je provide_password
+
+inc eax ; Move past white space character.
+
+push eax
+push offset vm_computeCorrectPassword
+call initVm
+cmp eax, 0
+je correct_password
+
+invoke GetStdHandle, STD_OUTPUT_HANDLE
+invoke WriteConsole, eax, addr output_incorrect_password, sizeof output_incorrect_password, ebx, NULL
 invoke ExitProcess, 0
 ; --------------------------------------------------------------------------------------------------------------------------------------
+
+provide_password:
+invoke GetStdHandle, STD_OUTPUT_HANDLE
+invoke WriteConsole, eax,  addr output_provide_password, sizeof output_provide_password, ebx, NULL
+invoke ExitProcess, 0
+
+correct_password:
+
+invoke GetStdHandle, STD_OUTPUT_HANDLE
+invoke WriteConsole, eax,  addr output_correct_password, sizeof output_correct_password, ebx, NULL
+invoke ExitProcess, 0
 
 end start
