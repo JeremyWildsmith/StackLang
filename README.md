@@ -1,5 +1,5 @@
 # StackLang - Obfuscation by Virtualization
-StackLang is a small x86 MASM assembly project that demonstrates obstructing an algorithm by using virtualization. A custom virtual machine / interpreter is embedded into the application. The embedded virtual machine interprets an algorithm written in bytecode.
+StackLang is a small x86 MASM assembly project that demonstrates obfuscating an algorithm by using virtualization. A custom virtual machine / interpreter is embedded into the application. The embedded virtual machine interprets an algorithm written in bytecode.
 
 The virtualized algorithm computes a hash of the input data and compares it to the expected hash value. If the hashes match, a message informing you that you have entered the correct password is displayed.
 
